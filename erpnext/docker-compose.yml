@@ -1,0 +1,198 @@
+version: "3.8"
+
+# ERPNext on Umbrel — based on frappe/frappe_docker (v2.x)
+# Services: frontend (nginx), backend (gunicorn), scheduler,
+#           worker-short, worker-long, websocket, redis-cache,
+#           redis-queue, mariadb, create-site (init only)
+
+x-customizable-image: &customizable_image
+  image: frappe/erpnext:v15
+  pull_policy: missing
+
+x-depends-on-configurator: &depends_on_configurator
+  depends_on:
+    configurator:
+      condition: service_completed_successfully
+
+x-backend-defaults: &backend_defaults
+  <<: *depends_on_configurator
+  image: frappe/erpnext:v15
+  pull_policy: missing
+  volumes:
+    - sites:/home/frappe/frappe-bench/sites
+    - logs:/home/frappe/frappe-bench/logs
+
+services:
+
+  # ── Database ───────────────────────────────────────────────
+  mariadb:
+    image: mariadb:10.6
+    restart: on-failure
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+    environment:
+      MYSQL_ROOT_PASSWORD: ${APP_PASSWORD:-changeit}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    networks:
+      - default
+
+  # ── Redis (cache + queue) ───────────────────────────────────
+  redis-cache:
+    image: redis:7-alpine
+    restart: on-failure
+    volumes:
+      - redis-cache-data:/data
+    networks:
+      - default
+
+  redis-queue:
+    image: redis:7-alpine
+    restart: on-failure
+    volumes:
+      - redis-queue-data:/data
+    networks:
+      - default
+
+  # ── Frappe Configurator (runs once) ────────────────────────
+  configurator:
+    image: frappe/erpnext:v15
+    pull_policy: missing
+    restart: "no"
+    command:
+      - >
+        ls -1 apps > sites/apps.txt &&
+        bench set-config -g db_host mariadb &&
+        bench set-config -gp db_port 3306 &&
+        bench set-config -g redis_cache redis://redis-cache:6379 &&
+        bench set-config -g redis_queue redis://redis-queue:6379 &&
+        bench set-config -g redis_socketio redis://redis-queue:6379 &&
+        bench set-config -gp socketio_port 9000
+    entrypoint:
+      - bash
+      - -c
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      mariadb:
+        condition: service_started
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+    networks:
+      - default
+
+  # ── Site Creator (runs once on first boot) ──────────────────
+  create-site:
+    image: frappe/erpnext:v15
+    pull_policy: missing
+    restart: "no"
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    entrypoint:
+      - bash
+      - -c
+    command:
+      - >
+        wait-for-it -t 120 mariadb:3306 &&
+        wait-for-it -t 120 redis-cache:6379 &&
+        export start=`date +%s` &&
+        until [[ -n `grep -hs ^ sites/common_site_config.json | python3 -c "import sys, json; print(json.load(sys.stdin).get('db_host', ''))"` ]]; do
+          echo "Waiting for configurator...";
+          sleep 1;
+          if (( `date +%s`-start > 120 )); then echo "Timed out waiting for configurator."; exit 1; fi;
+        done &&
+        echo "Configurator ready" &&
+        bench new-site --no-mariadb-socket --mariadb-user-host-login-scope=% \
+          --db-root-password ${APP_PASSWORD:-changeit} \
+          --admin-password ${APP_PASSWORD:-changeit} \
+          --install-app erpnext \
+          erpnext.localhost || echo "Site already exists, skipping."
+    depends_on:
+      <<: *depends_on_configurator
+      configurator:
+        condition: service_completed_successfully
+    networks:
+      - default
+
+  # ── Backend (Gunicorn) ──────────────────────────────────────
+  backend:
+    <<: *backend_defaults
+    restart: on-failure
+    command: ["gunicorn", "--chdir=/home/frappe/frappe-bench/sites", "--bind=0.0.0.0:8000", "--threads=4", "--workers=2", "--worker-class=gthread", "--timeout=120", "frappe.app:application"]
+    depends_on:
+      create-site:
+        condition: service_completed_successfully
+    networks:
+      - default
+
+  # ── Frontend (Nginx) ───────────────────────────────────────
+  frontend:
+    <<: *customizable_image
+    restart: on-failure
+    command: nginx-entrypoint.sh
+    environment:
+      BACKEND: backend:8000
+      FRAPPE_SITE_NAME_HEADER: erpnext.localhost
+      SOCKETIO: websocket:9000
+      UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "off"
+      PROXY_READ_TIMEOUT: "120"
+      CLIENT_MAX_BODY_SIZE: 50m
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    ports:
+      - ${APP_PORT:-8080}:8080
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - default
+
+  # ── WebSocket ──────────────────────────────────────────────
+  websocket:
+    <<: *depends_on_configurator
+    image: frappe/erpnext:v15
+    pull_policy: missing
+    restart: on-failure
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    networks:
+      - default
+
+  # ── Background Workers ─────────────────────────────────────
+  scheduler:
+    <<: *backend_defaults
+    restart: on-failure
+    command: ["bench", "schedule"]
+
+  worker-short:
+    <<: *backend_defaults
+    restart: on-failure
+    command: ["bench", "worker", "--queue", "short,default"]
+
+  worker-long:
+    <<: *backend_defaults
+    restart: on-failure
+    command: ["bench", "worker", "--queue", "long,default,short"]
+
+networks:
+  default:
+    name: erpnext_network
+
+volumes:
+  mariadb-data:
+  redis-cache-data:
+  redis-queue-data:
+  sites:
+  logs:
