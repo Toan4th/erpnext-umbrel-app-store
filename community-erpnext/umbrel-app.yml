@@ -2,7 +2,7 @@ manifestVersion: 1
 id: community-erpnext
 category: Finance
 name: ERPNext
-version: "15.0.4"
+version: "15.0.5"
 tagline: Free and open-source ERP for small and medium businesses
 description: >-
   ERPNext is a comprehensive, open-source ERP built on the Frappe framework.
@@ -26,5 +26,4 @@ defaultPassword: "admin"
 torProxy: false
 dependencies: []
 releaseNotes: >-
-  ERPNext v15 running on Frappe Docker with MariaDB and Redis.
-  Default credentials: Administrator / admin (can be changed in ERPNext settings after login).
+  Added umbrelOS app_proxy integration for HTTPS gateway support and Tor hidden service generation. Default credentials: Administrator / admin.
