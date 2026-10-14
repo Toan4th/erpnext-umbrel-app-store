@@ -37,8 +37,6 @@ services:
       MYSQL_ROOT_PASSWORD: ${APP_PASSWORD:-changeit}
     volumes:
       - mariadb-data:/var/lib/mysql
-    networks:
-      - default
 
   # ── Redis (cache + queue) ───────────────────────────────────
   redis-cache:
@@ -46,16 +44,12 @@ services:
     restart: on-failure
     volumes:
       - redis-cache-data:/data
-    networks:
-      - default
 
   redis-queue:
     image: redis:7-alpine
     restart: on-failure
     volumes:
       - redis-queue-data:/data
-    networks:
-      - default
 
   # ── Frappe Configurator (runs once) ────────────────────────
   configurator:
@@ -84,8 +78,6 @@ services:
         condition: service_started
       redis-queue:
         condition: service_started
-    networks:
-      - default
 
   # ── Site Creator (runs once on first boot) ──────────────────
   create-site:
@@ -117,8 +109,6 @@ services:
     depends_on:
       configurator:
         condition: service_completed_successfully
-    networks:
-      - default
 
   # ── Backend (Gunicorn) ──────────────────────────────────────
   backend:
@@ -128,8 +118,6 @@ services:
     depends_on:
       create-site:
         condition: service_completed_successfully
-    networks:
-      - default
 
   # ── Frontend (Nginx) ───────────────────────────────────────
   frontend:
@@ -153,8 +141,6 @@ services:
     depends_on:
       backend:
         condition: service_started
-    networks:
-      - default
 
   # ── WebSocket ──────────────────────────────────────────────
   websocket:
@@ -166,8 +152,6 @@ services:
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
-    networks:
-      - default
 
   # ── Background Workers ─────────────────────────────────────
   scheduler:
@@ -184,10 +168,6 @@ services:
     <<: *backend_defaults
     restart: on-failure
     command: ["bench", "worker", "--queue", "long,default,short"]
-
-networks:
-  default:
-    name: erpnext_network
 
 volumes:
   mariadb-data:
