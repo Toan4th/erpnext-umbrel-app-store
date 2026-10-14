@@ -115,7 +115,6 @@ services:
           --install-app erpnext \
           erpnext.localhost || echo "Site already exists, skipping."
     depends_on:
-      <<: *depends_on_configurator
       configurator:
         condition: service_completed_successfully
     networks:
