@@ -2,7 +2,7 @@ manifestVersion: 1
 id: community-erpnext
 category: Finance
 name: ERPNext
-version: "15.0.3"
+version: "15.0.4"
 tagline: Free and open-source ERP for small and medium businesses
 description: >-
   ERPNext is a comprehensive, open-source ERP built on the Frappe framework.

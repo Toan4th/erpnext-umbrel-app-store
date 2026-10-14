@@ -102,6 +102,7 @@ services:
         done &&
         echo "Configurator ready" &&
         (bench new-site --no-mariadb-socket --mariadb-user-host-login-scope=% --db-root-password ${APP_PASSWORD:-changeit} --admin-password ${APP_PASSWORD:-admin} --install-app erpnext erpnext.localhost || echo "Site already exists, skipping.") &&
+        cd /home/frappe/frappe-bench/sites &&
         /home/frappe/frappe-bench/env/bin/python -c "import frappe; frappe.init('erpnext.localhost'); frappe.connect(); from frappe.utils.password import update_password; update_password('Administrator', 'admin'); frappe.db.commit(); print('ADMIN_PASSWORD_UPDATED_SUCCESSFULLY')"
     depends_on:
       configurator:
