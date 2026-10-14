@@ -101,11 +101,8 @@ services:
           if (( `date +%s`-start > 120 )); then echo "Timed out waiting for configurator."; exit 1; fi;
         done &&
         echo "Configurator ready" &&
-        bench new-site --no-mariadb-socket --mariadb-user-host-login-scope=% \
-          --db-root-password ${APP_PASSWORD:-changeit} \
-          --admin-password ${APP_PASSWORD:-changeit} \
-          --install-app erpnext \
-          erpnext.localhost || echo "Site already exists, skipping."
+        (bench new-site --no-mariadb-socket --mariadb-user-host-login-scope=% --db-root-password ${APP_PASSWORD:-changeit} --admin-password ${APP_PASSWORD:-admin} --install-app erpnext erpnext.localhost || echo "Site already exists, skipping.") &&
+        bench --site erpnext.localhost set-admin-password ${APP_PASSWORD:-admin}
     depends_on:
       configurator:
         condition: service_completed_successfully
