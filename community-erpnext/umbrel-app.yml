@@ -2,8 +2,9 @@ manifestVersion: 1
 id: community-erpnext
 category: Finance
 name: ERPNext
-version: "15.0.5"
+version: "15.0.6"
 tagline: Free and open-source ERP for small and medium businesses
+icon: https://raw.githubusercontent.com/Toan4th/erpnext-umbrel-app-store/main/community-erpnext/icon.svg
 description: >-
   ERPNext is a comprehensive, open-source ERP built on the Frappe framework.
   It covers Accounting, CRM, Inventory, HR, Payroll, Manufacturing, and
@@ -26,4 +27,4 @@ defaultPassword: "admin"
 torProxy: false
 dependencies: []
 releaseNotes: >-
-  Added umbrelOS app_proxy integration for HTTPS gateway support and Tor hidden service generation. Default credentials: Administrator / admin.
+  Added official Frappe ERPNext app icon. Default credentials: Administrator / admin.
