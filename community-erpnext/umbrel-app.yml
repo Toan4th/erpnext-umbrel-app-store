@@ -2,7 +2,7 @@ manifestVersion: 1
 id: community-erpnext
 category: Finance
 name: ERPNext
-version: "15.0.6"
+version: "15.0.7"
 tagline: Free and open-source ERP for small and medium businesses
 icon: https://raw.githubusercontent.com/Toan4th/erpnext-umbrel-app-store/main/community-erpnext/icon.svg
 description: >-
@@ -27,4 +27,4 @@ defaultPassword: "admin"
 torProxy: false
 dependencies: []
 releaseNotes: >-
-  Added official Frappe ERPNext app icon. Default credentials: Administrator / admin.
+  Automatically flush Redis cache and refresh asset bundles on container updates. Default credentials: Administrator / admin.

@@ -70,7 +70,8 @@ services:
         bench set-config -g redis_cache redis://redis-cache:6379 &&
         bench set-config -g redis_queue redis://redis-queue:6379 &&
         bench set-config -g redis_socketio redis://redis-queue:6379 &&
-        bench set-config -gp socketio_port 9000
+        bench set-config -gp socketio_port 9000 &&
+        /home/frappe/frappe-bench/env/bin/python -c "import redis; redis.Redis(host='redis-cache', port=6379).flushall(); print('REDIS_CACHE_FLUSHED')"
     entrypoint:
       - bash
       - -c
@@ -109,7 +110,7 @@ services:
         echo "Configurator ready" &&
         (bench new-site --no-mariadb-socket --mariadb-user-host-login-scope=% --db-root-password ${APP_PASSWORD:-changeit} --admin-password ${APP_PASSWORD:-admin} --install-app erpnext erpnext.localhost || echo "Site already exists, skipping.") &&
         cd /home/frappe/frappe-bench/sites &&
-        /home/frappe/frappe-bench/env/bin/python -c "import frappe; frappe.init('erpnext.localhost'); frappe.connect(); from frappe.utils.password import update_password; update_password('Administrator', 'admin'); frappe.db.commit(); print('ADMIN_PASSWORD_UPDATED_SUCCESSFULLY')"
+        /home/frappe/frappe-bench/env/bin/python -c "import frappe; frappe.init('erpnext.localhost'); frappe.connect(); from frappe.utils.password import update_password; update_password('Administrator', 'admin'); frappe.db.commit(); frappe.clear_cache(); print('ADMIN_PASSWORD_AND_CACHE_UPDATED')"
     depends_on:
       configurator:
         condition: service_completed_successfully
